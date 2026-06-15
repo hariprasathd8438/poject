@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VoltEarth — AI Powered Renewable Energy Platform</title>
+
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+
+<!-- External Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+<!-- VoltEarth Styles -->
+<link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+
+<!-- LOADER -->
+<div class="loader-ov" id="loader">
+  <div class="lring"></div>
+  <div class="ltxt" id="ltxt">Connecting to GPS…</div>
+  <div class="lsteps"><div class="lstep on" id="ls1"></div><div class="lstep" id="ls2"></div><div class="lstep" id="ls3"></div></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast" style="display:none"></div>
+
+<!-- DOWNLOAD MODAL -->
+<div class="overlay" id="dl-modal">
+  <div class="modal" style="max-width:520px;">
+    <h3>⬇ Download Report</h3>
+    <div class="msub" id="modal-sub">Choose report type and time period</div>
+    <!-- Row 1: Daily · Weekly · Monthly -->
+    <div class="mopts" style="margin-bottom:10px;">
+      <div class="mopt" onclick="selOpt(this,'daily')" data-tf="daily"><div class="mopt-icon">📋</div><div class="mopt-lbl">Daily</div><div class="mopt-sub">Today only</div></div>
+      <div class="mopt sel" onclick="selOpt(this,'weekly')" data-tf="weekly"><div class="mopt-icon">📅</div><div class="mopt-lbl">Weekly</div><div class="mopt-sub">Last 7 days</div></div>
+      <div class="mopt" onclick="selOpt(this,'monthly')" data-tf="monthly"><div class="mopt-icon">🗓</div><div class="mopt-lbl">Monthly</div><div class="mopt-sub">Last 30 days</div></div>
+    </div>
+    <!-- Row 2: Yearly · Custom Range -->
+    <div class="mopts-row2">
+      <div class="mopt" onclick="selOpt(this,'yearly')" data-tf="yearly"><div class="mopt-icon">📊</div><div class="mopt-lbl">Yearly</div><div class="mopt-sub">Full year (365 days)</div></div>
+      <div class="mopt" onclick="selOpt(this,'custom')" data-tf="custom"><div class="mopt-icon">🗃</div><div class="mopt-lbl">Custom Range</div><div class="mopt-sub">Pick any date range</div></div>
+    </div>
+    <!-- Custom Range Picker -->
+    <div class="custom-range" id="custom-range-box">
+      <div class="cr-row">
+        <div>
+          <label>Start Date</label>
+          <input type="date" id="cr-start" onchange="validateCustomRange()" />
+        </div>
+        <div>
+          <label>End Date</label>
+          <input type="date" id="cr-end" onchange="validateCustomRange()" />
+        </div>
+      </div>
+      <div class="cr-hint">📌 Max range: 366 days. End date must be on or after start date.</div>
+      <div class="cr-err" id="cr-err">⚠️ Please fix the date range before downloading.</div>
+      <div class="cr-preview" id="cr-preview"></div>
+    </div>
+    <div class="mbtns">
+      <button class="mcancel" onclick="closeModal()">Cancel</button>
+      <button class="mconfirm" id="dl-confirm-btn" onclick="confirmDl()">⬇ Download CSV</button>
+    </div>
+  </div>
+</div>
+
+<!-- VOICE PANEL -->
+<div class="vpanel" id="vpanel">
+  <div class="vpanel-title">
+    <span>🎙 Voice Assistant</span>
+    <span class="badge b-purple" id="vstatus">Ready</span>
+  </div>
+  <div class="vbars" id="vbars">
+    <div class="vb"></div><div class="vb"></div><div class="vb"></div>
+    <div class="vb"></div><div class="vb"></div><div class="vb"></div>
+  </div>
+  <div class="vtxt" id="vtxt">Tap mic or choose a command</div>
+  <div class="vcmds">
+    <div class="vcmd" onclick="vcmd('temp')">🌡 Temperature</div>
+    <div class="vcmd" onclick="vcmd('location')">📍 My Location</div>
+    <div class="vcmd" onclick="vcmd('solar')">☀️ Solar</div>
+    <div class="vcmd" onclick="vcmd('wind')">💨 Wind</div>
+    <div class="vcmd" onclick="vcmd('summary')">📋 Summary</div>
+  </div>
+</div>
+<button class="vfab" id="vfab" onclick="toggleVoice()" title="Voice Assistant">
+  <div class="vr1"></div><div class="vr2"></div>🎙
+</button>
+
+<!-- AUTH PAGE -->
+<div class="page active" id="page-auth">
+  <div class="auth-bg">
+    <div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div>
+    <div class="auth-card">
+      <div class="nav-logo" style="margin-bottom:20px;"><div class="logo-icon">⚡</div>VoltEarth</div>
+      <h2>Welcome back</h2>
+      <div class="sub">Sign in to your renewable energy intelligence platform</div>
+      <div class="auth-tabs">
+        <div class="auth-tab active" onclick="authTab('login',this)">Sign In</div>
+        <div class="auth-tab" onclick="authTab('register',this)">Register</div>
+      </div>
+      <div id="frm-login">
+        <div class="field"><label>Email</label><input type="email" id="l-email" placeholder="you@example.com" oninput="clearFieldError('l-email')" autocomplete="email"/></div>
+        <div class="field"><label>Password</label><input type="password" id="l-pass" placeholder="Your password" oninput="clearFieldError('l-pass')" autocomplete="current-password"/></div>
+        <button class="btn-p" onclick="doLogin()">Sign In →</button>
+        <div class="divider">or</div>
+        <button class="btn-ghost" onclick="demoLogin()">▷ &nbsp;Demo Account</button>
+      </div>
+      <div id="frm-reg" style="display:none">
+        <div class="field"><label>Full Name</label><input type="text" id="r-name" placeholder="Jane Smith" oninput="clearFieldError('r-name')" autocomplete="name"/></div>
+        <div class="field"><label>Email</label><input type="email" id="r-email" placeholder="you@example.com" oninput="clearFieldError('r-email')" autocomplete="email"/></div>
+        <div class="field"><label>Password</label><input type="password" id="r-pass" placeholder="Min 8 chars — letters + numbers" oninput="clearFieldError('r-pass')" autocomplete="new-password"/></div>
+        <div class="field"><label>Organization <span style="opacity:.5;font-weight:400;">(optional)</span></label><input type="text" id="r-org" placeholder="Solar Corp Ltd."/></div>
+        <button class="btn-p" onclick="doRegister()">Create Account →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN SHELL -->
+<div id="shell" style="display:none">
+  <nav>
+    <div class="nav-logo"><div class="logo-icon">⚡</div>VoltEarth</div>
+    <div class="nav-links">
+      <div class="nav-link active" onclick="go('dashboard',this)">Dashboard</div>
+      <div style="display:none;" id="db-badge" title="Supabase Database Connected">
+        <span style="width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;"></span>
+        <span style="font-size:11px;color:#22c55e;font-weight:700;">DB Live</span>
+      </div>
+      <div class="nav-link" onclick="go('generator',this)">Generator</div>
+      <div class="nav-link" onclick="go('reports',this)">Reports</div>
+      <div class="nav-link" onclick="go('activity',this)">Activity Log</div>
+    </div>
+    <div class="nav-user" onclick="logout()" title="Logout">
+      <div class="avatar" id="nav-av">DU</div>
+      <span style="font-size:12.5px;color:var(--text2)" id="nav-name">Demo User</span>
+      <span style="color:var(--text3);font-size:10px;margin-left:2px;">↩</span>
+    </div>
+  </nav>
+
+  <!-- ══ DASHBOARD ══ -->
+  <div class="page active" id="page-dashboard">
+    <div class="wrap">
+      <div class="ph">
+        <div><div class="pt">Energy Intelligence Dashboard</div><div class="ps">Live generation metrics · <span id="dash-dt"></span></div></div>
+        <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
+          <span class="badge b-ok">● Live</span>
+          <span class="badge b-info" id="dash-loc">—</span>
+        </div>
+      </div>
+      <!-- GPS BANNER -->
+      <div class="gps-banner" id="gps-banner">
+        <div class="gps-dot"></div>
+        <div class="gps-info">
+          <div class="gps-title" id="gps-title">Acquiring GPS location…</div>
+          <div class="gps-coords" id="gps-coords">Requesting browser geolocation permission</div>
+        </div>
+        <button class="gps-speak" onclick="vcmd('location')">🔊 Speak</button>
+      </div>
+      <!-- TEMP STRIP -->
+      <div class="tstrip">
+        <svg class="tgauge" viewBox="0 0 58 58">
+          <circle cx="29" cy="29" r="23" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="5"/>
+          <circle id="garc" cx="29" cy="29" r="23" fill="none" stroke="#f59e0b" stroke-width="5" stroke-linecap="round"
+            stroke-dasharray="144.5" stroke-dashoffset="58" transform="rotate(-90 29 29)" style="transition:stroke-dashoffset 1.1s ease,stroke .4s;"/>
+          <text x="29" y="33" text-anchor="middle" fill="var(--text)" font-size="11" font-weight="700" font-family="Syne,sans-serif" id="garc-txt">—</text>
+        </svg>
+        <div class="tinfo">
+          <div class="tval" id="tval">—</div>
+          <div class="tlbl" id="tlbl">Location temperature loading…</div>
+        </div>
+        <button class="tspeak" onclick="vcmd('temp')">🔊 Speak Temperature</button>
+      </div>
+      <!-- METRICS -->
+      <div class="mg">
+        <div class="mc" style="--cc:var(--solar);animation-delay:.04s"><div class="mc-label">Solar Irradiance</div><div><span class="mc-val" id="m-sol">5.8</span><span class="mc-unit">kWh/m²/d</span></div><div class="mc-delta up">▲ 12% vs last month</div><div class="pbar"><div class="pfill" style="--w:72%;background:var(--solar);"></div></div></div>
+        <div class="mc" style="--cc:var(--wind);animation-delay:.08s"><div class="mc-label">Wind Speed</div><div><span class="mc-val" id="m-wind">7.2</span><span class="mc-unit">m/s avg</span></div><div class="mc-delta up">▲ 8% vs last month</div><div class="pbar"><div class="pfill" style="--w:58%;background:var(--wind);"></div></div></div>
+        <div class="mc" style="--cc:var(--accent2);animation-delay:.12s"><div class="mc-label">Annual Output</div><div><span class="mc-val">48.3</span><span class="mc-unit">MWh</span></div><div class="mc-delta up">▲ 5.2% YoY</div><div class="pbar"><div class="pfill" style="--w:81%;background:var(--accent2);"></div></div></div>
+        <div class="mc" style="--cc:var(--accent);animation-delay:.16s"><div class="mc-label">CO₂ Offset</div><div><span class="mc-val">34.1</span><span class="mc-unit">t/yr</span></div><div class="mc-delta up">▲ 9.7% vs last yr</div><div class="pbar"><div class="pfill" style="--w:65%;background:var(--accent);"></div></div></div>
+      </div>
+      <!-- CHARTS -->
+      <div class="chart-grid">
+        <div class="cc" style="animation-delay:.08s">
+          <div class="ch"><div class="ct-title">Monthly Generation (kWh)</div><div style="display:flex;gap:3px;"><div class="tab-pill on" onclick="swChart('bar',this)">Bar</div><div class="tab-pill" onclick="swChart('line',this)">Line</div></div></div>
+          <div style="position:relative;height:250px;"><canvas id="mainC"></canvas></div>
+        </div>
+        <div class="cc" style="animation-delay:.12s">
+          <div class="ch"><div class="ct-title">Source Split</div></div>
+          <div style="position:relative;height:165px;"><canvas id="pieC"></canvas></div>
+          <div style="display:flex;justify-content:center;gap:16px;margin-top:11px;">
+            <span style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--text2);"><span style="width:9px;height:9px;border-radius:2px;background:#f59e0b;display:inline-block;"></span>Solar 64%</span>
+            <span style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--text2);"><span style="width:9px;height:9px;border-radius:2px;background:#10b981;display:inline-block;"></span>Wind 36%</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px;">
+        <div class="cc"><div class="ch"><div class="ct-title">Solar Irradiance Today (W/m²)</div></div><div style="position:relative;height:165px;"><canvas id="solC"></canvas></div></div>
+        <div class="cc"><div class="ch"><div class="ct-title">Wind Speed Profile (m/s)</div></div><div style="position:relative;height:165px;"><canvas id="wndC"></canvas></div></div>
+      </div>
+      <div class="cc">
+        <div class="ch"><div class="ct-title">GPS Location Map</div><span class="badge b-ok" id="gps-badge">Locating…</span></div>
+        <div class="mapcard">
+          <div class="mapgrid"></div>
+          <div class="map-marker"><div class="map-ping"></div><div class="map-ping2"></div><div class="map-pin"></div></div>
+          <div style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);font-size:11.5px;color:var(--text2);z-index:1;white-space:nowrap;" id="map-label">Acquiring coordinates…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ GENERATOR ══ -->
+  <div class="page" id="page-generator">
+    <div class="gw">
+      <div class="ph">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button id="gen-back-btn" onclick="genGoBack()" style="display:none;padding:7px 14px;border-radius:9px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">← Back</button>
+          <div><div class="pt">Energy Potential Generator</div><div class="ps" id="gen-subtitle">Configure location and energy source</div></div>
+        </div>
+      </div>
+      <div class="gcard">
+        <div style="font-size:19px;font-weight:800;font-family:'Syne',sans-serif;margin-bottom:3px;">Location Setup</div>
+        <div style="color:var(--text2);font-size:13px;margin-bottom:22px;" id="gen-card-sub">Select location type to begin</div>
+        <div class="gps-banner" style="margin-bottom:22px;" id="gen-gps">
+          <div class="gps-dot"></div>
+          <div class="gps-info"><div class="gps-title" id="gen-gps-title">GPS Active</div><div class="gps-coords" id="gen-gps-coords">Syncing location…</div></div>
+          <button class="gps-speak" onclick="vcmd('location')">🔊 Location</button>
+        </div>
+        <div class="frow" id="loc-dropdowns">
+          <div class="fg" id="fg-country"><label>Country</label><div class="sw"><select id="sel-c" onchange="updStates();onCountryChange();"><option value="">Select Country</option><option value="IN">India</option><option value="US">United States</option><option value="AU">Australia</option><option value="DE">Germany</option></select></div></div>
+          <div class="fg" id="fg-state"><label>State / Province</label><div class="sw"><select id="sel-s" onchange="updDists();onStateChange();"><option value="">Select State</option></select></div></div>
+          <div class="fg" id="fg-district"><label>District</label><div class="sw"><select id="sel-d" onchange="onDistrictChange();"><option value="">Select District</option></select></div></div>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:9px;">Energy Source</div>
+        <div class="etog">
+          <div class="ebtn sol" id="e-sol" onclick="selE('solar')"><span class="ebtn-icon">☀️</span><div class="ebtn-lbl">Solar Energy</div><div class="ebtn-sub">Photovoltaic</div></div>
+          <div class="ebtn" id="e-wnd" onclick="selE('wind')"><span class="ebtn-icon">💨</span><div class="ebtn-lbl">Wind Energy</div><div class="ebtn-sub">Turbine-based</div></div>
+        </div>
+        <div class="frow" style="grid-template-columns:1fr 1fr 1fr;">
+          <div class="fg"><label>System Size (kW)</label><input type="number" id="sys-sz" value="10" min="1"/></div>
+          <div class="fg"><label>Efficiency (%)</label><input type="number" id="eff-pct" value="20" min="1" max="50"/></div>
+          <div class="fg"><label>Ambient Temp (°C)</label><input type="number" id="temp-in" value="32" min="-10" max="55" oninput="updTemp(this.value)"/></div>
+        </div>
+        <button class="gbtn" onclick="generate()">⚡ &nbsp;Generate Analysis</button>
+        <div class="res" id="gen-res">
+          <div class="sdiv"></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <div style="font-size:15px;font-weight:800;font-family:'Syne',sans-serif;">Analysis Results</div>
+            <span class="badge b-ok">● Calculated</span>
+            <button class="dbtn" style="margin-left:auto;" onclick="speakResults()">🔊 Read Aloud</button>
+            <button class="dbtn dbtn-p" onclick="openModal('result')">⬇ Download</button>
+          </div>
+          <div class="rg" id="res-metrics"></div>
+          <div style="position:relative;height:230px;margin-bottom:18px;"><canvas id="resC"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ REPORTS ══ -->
+  <div class="page" id="page-reports">
+    <div class="rw">
+      <div class="ph">
+        <div><div class="pt">Reports & Downloads</div><div class="ps">Energy generation history and analysis exports</div></div>
+        <button class="dbtn dbtn-p" onclick="openModal('report')">⬇ Download Report</button>
+      </div>
+      <div class="tftabs">
+        <div class="tft on" onclick="swTf('day',this)">Today</div>
+        <div class="tft" onclick="swTf('week',this)">Week</div>
+        <div class="tft" onclick="swTf('month',this)">Month</div>
+        <div class="tft" onclick="swTf('6m',this)">6 Months</div>
+        <div class="tft" onclick="swTf('year',this)">Year</div>
+      </div>
+      <div class="cc" style="margin-bottom:18px;">
+        <div class="ch">
+          <div class="ct-title" id="rpt-title">Today — Hourly Output (kWh)</div>
+          <div style="display:flex;gap:7px;">
+            <button class="tspeak" style="padding:5px 11px;font-size:11.5px;" onclick="speakReport()">🔊 Summary</button>
+          </div>
+        </div>
+        <div style="position:relative;height:210px;"><canvas id="rptC"></canvas></div>
+      </div>
+      <div class="cc">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+          <div style="font-size:13.5px;font-weight:700;font-family:'Syne',sans-serif;">Generation Log</div>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;">
+            <input class="si" placeholder="🔍 Search records…" oninput="filterRpt(this.value)" id="rpt-search"/>
+            <button class="dbtn" onclick="openModal('report','daily')">⬇ Daily</button>
+            <button class="dbtn" onclick="openModal('report','weekly')">⬇ Weekly</button>
+            <button class="dbtn" onclick="openModal('report','monthly')">⬇ Monthly</button>
+            <button class="dbtn" onclick="openModal('report','yearly')">⬇ Yearly</button>
+            <button class="dbtn" onclick="openModal('report','custom')">⬇ Custom</button>
+          </div>
+        </div>
+        <table class="rtbl"><thead><tr><th>Date</th><th>Location</th><th>GPS Coords</th><th>Source</th><th>Gen (kWh)</th><th>Env Data</th><th>Eff%</th><th>Status</th></tr></thead>
+        <tbody id="rpt-tb"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ACTIVITY LOG ══ -->
+  <div class="page" id="page-activity">
+    <div class="wrap">
+      <div class="ph">
+        <div><div class="pt">User Activity Log</div><div class="ps">Complete audit: logins · searches · views · downloads · GPS locations</div></div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;">
+          <button class="dbtn" onclick="openModal('activity','daily')">⬇ Daily</button>
+          <button class="dbtn" onclick="openModal('activity','weekly')">⬇ Weekly</button>
+          <button class="dbtn" onclick="openModal('activity','monthly')">⬇ Monthly</button>
+          <button class="dbtn dbtn-p" onclick="openModal('activity','yearly')">⬇ Yearly</button>
+          <button class="dbtn" onclick="openModal('activity','custom')">⬇ Custom</button>
+        </div>
+      </div>
+      <div class="mg">
+        <div class="mc" style="--cc:var(--success);"><div class="mc-label">Online Now</div><div class="mc-val" id="stat-online">5</div><div class="mc-delta up">● Active sessions</div></div>
+        <div class="mc" style="--cc:var(--accent);"><div class="mc-label">Logins Today</div><div class="mc-val" id="stat-logins">12</div><div class="mc-delta up">▲ 3 vs yesterday</div></div>
+        <div class="mc" style="--cc:var(--solar);"><div class="mc-label">Reports Viewed</div><div class="mc-val" id="stat-views">38</div><div class="mc-delta up">▲ 7 today</div></div>
+        <div class="mc" style="--cc:var(--purple);"><div class="mc-label">Downloads Today</div><div class="mc-val" id="stat-dls">14</div><div class="mc-delta up">▲ 4 today</div></div>
+        <div class="mc" style="--cc:var(--pink);"><div class="mc-label">Searches Today</div><div class="mc-val" id="stat-srch">27</div><div class="mc-delta up">▲ 9 today</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+        <div class="cc">
+          <div class="ch"><div class="ct-title">Currently Logged In</div><span class="badge b-ok" id="live-badge">5 Online</span></div>
+          <div id="live-list"></div>
+        </div>
+        <div class="cc">
+          <div class="ch"><div class="ct-title">Recent Activity Feed</div><span class="badge b-info" id="feed-count">Live</span></div>
+          <div id="feed-list"></div>
+        </div>
+      </div>
+      <div class="cc">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+          <div style="font-size:13.5px;font-weight:700;font-family:'Syne',sans-serif;">Complete Audit Trail</div>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;">
+            <input class="si" placeholder="🔍 Filter users, actions…" oninput="filterAct(this.value)"/>
+            <button class="dbtn" onclick="openModal('activity','daily')">⬇ Daily</button>
+            <button class="dbtn" onclick="openModal('activity','weekly')">⬇ Weekly</button>
+            <button class="dbtn" onclick="openModal('activity','monthly')">⬇ Monthly</button>
+            <button class="dbtn dbtn-p" onclick="openModal('activity','yearly')">⬇ Full Log</button>
+            <button class="dbtn" onclick="openModal('activity','custom')">⬇ Custom</button>
+          </div>
+        </div>
+        <table class="rtbl" id="act-tbl">
+          <thead><tr><th>User</th><th>Action</th><th>Detail / Search Query</th><th>GPS Location</th><th>IP Address</th><th>Device</th><th>Time</th><th>Status</th></tr></thead>
+          <tbody id="act-tb"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════
+     VoltEarth JavaScript Modules
+     Load order matters — db.js and state.js first
+══════════════════════════════════════════ -->
+
+<!-- 1. Database layer (Supabase REST via plain fetch) -->
+<script src="js/db.js"></script>
+
+<!-- 2. Global state, location data, constants -->
+<script src="js/state.js"></script>
+
+<!-- 3. Authentication & app bootstrap -->
+<script src="js/auth.js"></script>
+
+<!-- 4. GPS, location dropdowns, navigation -->
+<script src="js/location.js"></script>
+
+<!-- 5. Dashboard charts -->
+<script src="js/charts.js"></script>
+
+<!-- 6. Energy generator, predictions, reports -->
+<script src="js/generator.js"></script>
+
+<!-- 7. Activity log -->
+<script src="js/activity.js"></script>
+
+<!-- 8. Download & CSV export -->
+<script src="js/download.js"></script>
+
+<!-- 9. Voice / Text-to-Speech -->
+<script src="js/voice.js"></script>
+
+<!-- 10. Helpers & init -->
+<script src="js/helpers.js"></script>
+
+</body>
+</html>
